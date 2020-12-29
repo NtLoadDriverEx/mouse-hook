@@ -1,0 +1,14 @@
+
+*.exe
+*.pdb
+*.iobj
+*.ipdb
+*.ilk
+*.tlog
+*.log
+*.obj
+*.recipe
+*.idb
+*.ipch
+*.db
+.vs/mouse-hook/v16/.suo
