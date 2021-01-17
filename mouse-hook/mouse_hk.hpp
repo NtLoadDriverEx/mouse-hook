@@ -155,24 +155,13 @@ namespace mouse_hk // thread-safe mouse hook api
 
 namespace key_hk
 {
-
-	enum class key_t : unsigned char
-	{
-		lbutton = 1 << 0, // 0b000'00001
-		rbutton = 1 << 1, // 0b000'00010
-		mbutton = 1 << 2, // 0b000'00100
-		a = 1 << 3,
-		b = 1 << 4,
-		c = 1 << 5,
-		d = 1 << 6,
-	};
-
 	namespace detail
 	{
 
 		inline static HHOOK hk_handle = nullptr;  // handle to low level key hook
+		inline static HKL kb_layout = nullptr;
 		inline static std::mutex hk_handle_mutex; // synchronization primitive for hk_handle
-		inline static std::vector<uint32_t> pressed_keys;
+		inline static std::vector<uint32_t> vk_keys;
 
 
 		inline static LRESULT CALLBACK ll_key_hk(_In_ const int code, _In_ const WPARAM wparam, _In_ const LPARAM lparam)
@@ -193,22 +182,22 @@ namespace key_hk
 			{
 				if (!(event_info->flags & 0x80))
 				{
-					if (!pressed_keys.empty())
+					if (!vk_keys.empty())
 					{
-						auto it = std::find(pressed_keys.begin(), pressed_keys.end(), event_info->vkCode);
-						if(it != pressed_keys.end())
+						auto it = std::find(vk_keys.begin(), vk_keys.end(), event_info->vkCode);
+						if(it != vk_keys.end())
 							return call_next_hk();
 					}
-					pressed_keys.push_back(event_info->vkCode);
+					vk_keys.push_back(event_info->vkCode);
 				}
 				else 
 				{
-					if (!pressed_keys.empty())
+					if (!vk_keys.empty())
 					{
-						auto it = std::find(pressed_keys.begin(), pressed_keys.end(), event_info->vkCode);
-						if (it == pressed_keys.end())
+						auto it = std::find(vk_keys.begin(), vk_keys.end(), event_info->vkCode);
+						if (it == vk_keys.end())
 							return call_next_hk();
-						pressed_keys.erase(it);
+						vk_keys.erase(it);
 					}
 				}
 			}
@@ -223,6 +212,9 @@ namespace key_hk
 
 			if (hk_handle) // fail if hook is already installed
 				return false;
+
+
+			kb_layout = LoadKeyboardLayoutA("04090409", KLF_ACTIVATE);
 
 			hk_handle = ::SetWindowsHookEx(WH_KEYBOARD_LL, &ll_key_hk, GetModuleHandle(nullptr), 0); // install hook
 
@@ -239,7 +231,7 @@ namespace key_hk
 			if (!::UnhookWindowsHookEx(hk_handle)) // uninstall hook
 				return false;
 
-			pressed_keys.clear(); // 0 << 0, restore to default state
+			vk_keys.clear(); // 0 << 0, restore to default state
 			hk_handle = nullptr; // allow for hook to be reinstalled
 
 			return true; // success
@@ -280,9 +272,15 @@ namespace key_hk
 		return std::make_unique<detail::key_hk_guard>(); // acquire RAII guard, install hook
 	}
 
-	inline bool state(uint32_t button) noexcept
+	inline auto get_string() -> std::string 
 	{
-		for (auto key : detail::pressed_keys)
+		std::string result;
+
+	}
+
+	inline bool vk_state(uint32_t button) noexcept
+	{
+		for (auto key : detail::vk_keys)
 		{
 			if (key == button)
 				return true;
